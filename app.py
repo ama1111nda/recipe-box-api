@@ -15,6 +15,34 @@ DATABASE = "recipes.db"
 app = Flask(__name__)
 
 
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.get_json()
+    username = data.get("username")
+    password = data.get("password")
+
+    db = get_db()
+    user = db.execute(
+        "SELECT id, username, password_hash FROM users WHERE username = ?",
+        (username,),
+    ).fetchone()
+
+    # generic auth failure helper
+    def auth_failed():
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    if user is None:
+        return auth_failed()
+
+    if not check_password_hash(user["password_hash"], password):
+        return auth_failed()
+
+    # success: return safe identity only
+    return jsonify({
+        "id": user["id"],
+        "username": user["username"],
+    }), 200
+
 def get_db():
     if "db" not in g:
         g.db = sqlite3.connect(DATABASE)
