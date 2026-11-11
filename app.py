@@ -15,19 +15,28 @@ DATABASE = "recipes.db"
 app = Flask(__name__)
 
 
+from flask import request, jsonify
+from werkzeug.security import check_password_hash
+
 @app.route("/login", methods=["POST"])
 def login():
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    
+    if data is None:
+        return jsonify({"error": "Invalid or missing JSON body"}), 400
+
     username = data.get("username")
     password = data.get("password")
+
+    if not isinstance(username, str) or not username.strip() or not isinstance(password, str) or not password.strip():
+        return jsonify({"error": "username and password are required"}), 400
 
     db = get_db()
     user = db.execute(
         "SELECT id, username, password_hash FROM users WHERE username = ?",
-        (username,),
+        (username.strip(),),
     ).fetchone()
 
-    # generic auth failure helper
     def auth_failed():
         return jsonify({"error": "Invalid credentials"}), 401
 
@@ -37,7 +46,6 @@ def login():
     if not check_password_hash(user["password_hash"], password):
         return auth_failed()
 
-    # success: return safe identity only
     return jsonify({
         "id": user["id"],
         "username": user["username"],
