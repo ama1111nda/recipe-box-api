@@ -8,6 +8,7 @@ That is the point: you will add both, lesson by lesson, in Units 2 and 3.
 import sqlite3
 
 from flask import Flask, g, jsonify, request
+from werkzeug.security import generate_password_hash, check_password_hash
 
 DATABASE = "recipes.db"
 
@@ -127,6 +128,45 @@ def delete_recipe(recipe_id):
         return jsonify({"error": "recipe not found"}), 404
     return "", 204
 
+@app.route("/register", methods=["POST"])
+def register():
+    data = request.get_json(silent=True) or {}
+
+    username = data.get("username")
+    password = data.get("password")
+
+    if not isinstance(username, str) or not username.strip():
+        return jsonify({"error": "username is required"}), 400
+
+    if not isinstance(password, str) or not password.strip():
+        return jsonify({"error": "password is required"}), 400
+
+    password_hash = generate_password_hash(password)
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+            (username.strip(), password_hash)
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "username already exists"}), 409
+
+    return jsonify({"message": "User registered successfully", "username": username.strip()}), 201
+
+def demo_password_hashing():
+    password = "example-password"
+    wrong = "wrong-password"
+
+    stored_hash = generate_password_hash(password)
+    print("Stored hash:", stored_hash)
+
+    print("Correct password matches:", check_password_hash(stored_hash, password))
+    print("Wrong password matches:", check_password_hash(stored_hash, wrong))
+
 
 if __name__ == "__main__":
     app.run(debug=True)
+
