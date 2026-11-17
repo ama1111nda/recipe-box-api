@@ -9,6 +9,7 @@ import sqlite3
 import os
 import jwt
 
+from jwt import ExpiredSignatureError
 from datetime import datetime, timedelta
 from flask import Flask, g, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -229,6 +230,9 @@ def update_recipe(recipe_id):
     return jsonify(recipe_to_dict(row))
 
 
+from jwt import ExpiredSignatureError
+
+
 @app.delete("/recipes/<int:recipe_id>")
 def delete_recipe(recipe_id):
     auth_header = request.headers.get("Authorization")
@@ -245,8 +249,10 @@ def delete_recipe(recipe_id):
             app.config["JWT_SECRET"],
             algorithms=["HS256"],
         )
+    except ExpiredSignatureError:
+        return jsonify({"error": "token expired, please log in again"}), 401
     except jwt.PyJWTError:
-        return jsonify({"error": "invalid or expired token"}), 401
+        return jsonify({"error": "invalid token"}), 401
 
     user_id = payload.get("sub")
     if not user_id:
@@ -255,8 +261,10 @@ def delete_recipe(recipe_id):
     db = get_db()
     cur = db.execute("DELETE FROM recipes WHERE id = ?", (recipe_id,))
     db.commit()
+
     if cur.rowcount == 0:
         return jsonify({"error": "recipe not found"}), 404
+
     return "", 204
 
 @app.route("/register", methods=["POST"])
