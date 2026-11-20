@@ -227,6 +227,7 @@ def create_recipe():
 
 
 ALLOWED_TEXT_FIELDS = ("title", "ingredients", "instructions")
+MAX_TEXT_LENGTH = 10_000
 
 
 @app.patch("/recipes/<int:recipe_id>")
